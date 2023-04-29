@@ -1,7 +1,7 @@
 # httpClient
-Facilitate the swapability of HTTP client dependencies in a Node.js project.
+Facilitate the swappability of HTTP client dependencies in a Node.js project.
 
-## Swapability
+## Swappability
 Dependency injection's fraternal twin.
 
 Dependencies, and the security vulnerabilities that come with them, are burdens on node.js project maintainers. We want to promote code that makes replacing 1 dependency with another easy.
@@ -154,9 +154,9 @@ These are the callbacks that will `always` be called when a promise settles,
 for `all` clients.
 
 In other words, this is about transforming the API responses and errors
-from the swapable dependency, _regardless_ of which _API_ returns or throws them.
+from the swappable dependency, _regardless_ of which _API_ returns or throws them.
 
-You can think of it as a _vendor adapter_, where the `vendor` is the swapable library (eg: axios).
+You can think of it as a _vendor adapter_, where the `vendor` is the swappable library (eg: axios).
 
 This is a good place to add debug logs.
 

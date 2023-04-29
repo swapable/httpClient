@@ -1,7 +1,7 @@
 {
-  "name": "@swapable/httpclient",
-  "version": "1.0.0",
-  "description": "Facilitate the swapability of http client dependencies in a Node.js project.",
+  "name": "@swappable/httpclient",
+  "version": "1.0.1",
+  "description": "Facilitate the swappability of http client dependencies in a Node.js project.",
   "main": "src/index.js",
   "files": [
     "src/**/*.js",
