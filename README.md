@@ -27,7 +27,7 @@ because now you can easily mock responses for any http request.
 ### With Axios example
 ```js
 // buildHttpClient.js
-const getClientBuilder = require('httpClient');
+const getClientBuilder = require('@swappable/httpclient');
 const { default: axios } = require('axios');
 
 const buildHttpClient = getClientBuilder({
