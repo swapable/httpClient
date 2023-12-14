@@ -1,14 +1,16 @@
 {
   "name": "@swappable/httpclient",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "description": "Facilitate the swappability of http client dependencies in a Node.js project.",
   "main": "src/index.js",
+  "types": "index.d.ts",
   "files": [
     "src/**/*.js",
     "!src/**/*.test.js"
   ],
   "scripts": {
-    "test": "jest --coverage"
+    "test": "jest --coverage",
+    "sandbox": "node sandbox.js"
   },
   "repository": {
     "type": "git",
@@ -26,6 +28,7 @@
   },
   "homepage": "https://github.com/swapable/httpClient#readme",
   "devDependencies": {
+    "axios": "^1.6.2",
     "jest": "^29.5.0"
   }
 }
