@@ -1,87 +1,95 @@
-// Crude so that it can be used to build a url query string
-// as well as a form-data and x-www-form-urlencoded payload
-const buildCrudeQueryString = (queryParameters) =>
-  Object.entries(queryParameters)
-    .map(([k, v]) => k + '=' + v)
-    .join('&');
+const nodePath = require('path');
 
-const plugImposableHeadersIn = (headers, getImposableHeaders) => {
-  if (headers) {
-    const imposableHeaders = getImposableHeaders ? getImposableHeaders() : {};
-    return { ...headers, ...imposableHeaders };
+const urlBuilder = (baseUrl) => ({ url = '', pathParams = [], queryParams = {} } = {}) => {
+  let finalUrl;
+  try {
+    // check if consumer intends to pass a full url (thereby ignoring baseUrl for this request)
+    const reqUrl = new URL(url);
+    finalUrl = new URL(nodePath.join(reqUrl.href, ...pathParams));
+  } catch (e) {
+    // check if consumer passed a url without a protocol (e.g. 'google.com')
+    if (/\.([a-z]{2,})$/i.test(url)) {
+      console.warn("Did you intend to pass a full url? Make sure to include 'http://' or 'https://'.");
+    }
+    // if consumer did not pass a full url, use baseUrl and assume url is a relative path
+    const base = new URL(baseUrl || 'about:blank');
+    finalUrl = new URL(nodePath.join(base.href, url, ...pathParams));
+  }
+  Object.entries(queryParams).forEach(([key, value]) => finalUrl.searchParams.set(key, value));
+  return finalUrl.toString();
+};
+
+const headersBuilder = (
+  setDefaultHeaders,
+  setFixedHeaders,
+) => ({ headers } = {}) => {
+  // Allow setting headers as null to send headerless requests
+  if (setDefaultHeaders && headers === undefined) {
+    headers = setDefaultHeaders();
+  }
+  if (setFixedHeaders) {
+    if (headers) {
+      // Allow overriding fixedHeaders on a per-request basis
+      headers = { ...setFixedHeaders(), ...headers };
+    // TODO: think some more about this. There may be value in pushing consumers
+    // to pass a setDefaultHeaders
+    } else if (headers === undefined) {
+      headers = setFixedHeaders();
+    }
   }
   return headers;
 };
 
-const buildHeaders = ({ headers, getDefaultHeaders, getImposableHeaders }) =>
-  headers === undefined // Allow setting headers as null to send headerless requests
-    ? plugImposableHeadersIn(
-        getDefaultHeaders ? getDefaultHeaders() : {},
-        getImposableHeaders
-      )
-    : plugImposableHeadersIn(headers, getImposableHeaders);
-
-const getClientBuilder =
-  ({ sendRequest, successAdapter, failureAdapter }) =>
-  ({
-    customSuccessAdapter,
-    customFailureAdapter,
-    getDefaultHeaders, // Function so that JS 'this' can be used by consumer
-    getImposableHeaders, // Function so that JS 'this' can be used by consumer
-  } = {}) => {
-    const execute = ({
-      headers,
-      method,
-      url,
-      data,
-      queryParameters,
-      attemptNumber = 1,
-    }) => {
-      const qs = queryParameters
-        ? `?${buildCrudeQueryString(queryParameters)}`
-        : '';
-      const request = {
-        headers: buildHeaders({
-          headers,
-          getDefaultHeaders,
-          getImposableHeaders,
-        }),
-        method: method.toUpperCase(),
-        url: url + qs,
-        attemptNumber,
-      };
-      if (data) {
-        request.data = typeof data === 'string' ? data : JSON.stringify(data);
-      }
-      return sendRequest(request)
-        .then(successAdapter)
-        .then((response) =>
-          customSuccessAdapter
-            ? customSuccessAdapter(response, request)
-            : response
-        )
-        .catch(failureAdapter)
-        .catch((error) => {
-          if (customFailureAdapter) {
-            return customFailureAdapter(error, request);
-          }
-          throw error;
-        });
-    };
-    return {
-      buildCrudeQueryString,
-      execute,
-      get: (url, { headers, queryParameters } = {}) =>
-        execute({ headers, url, queryParameters, method: 'GET' }),
-      post: (url, { headers, queryParameters, data } = {}) =>
-        execute({ headers, url, queryParameters, data, method: 'POST' }),
-      put: (url, { headers, queryParameters, data } = {}) =>
-        execute({ headers, url, queryParameters, data, method: 'PUT' }),
-      patch: (url, { headers, queryParameters, data } = {}) =>
-        execute({ headers, url, queryParameters, data, method: 'PATCH' }),
-      delete: (url, { headers, queryParameters } = {}) =>
-        execute({ headers, url, queryParameters, method: 'DELETE' }),
-    };
+const reqBuilder = (buildUrl, buildHeaders) => (reqElements = {}) => {
+  const req = {
+    method: reqElements.method ? reqElements.method.toUpperCase() : 'GET',
+    url: buildUrl(reqElements),
+    headers: buildHeaders(reqElements),
+    attemptNumber: reqElements.attemptNumber || 1
   };
+  if (reqElements.data) {
+    const { data } = reqElements;
+    req.data = typeof data === 'string' ? data : JSON.stringify(data);
+  }
+  return req;
+};
 
-module.exports = getClientBuilder;
+const getBuilder = ({
+  requestAdapter,
+  responseAdapter,
+  errorAdapter
+} = {}) => ({
+  baseUrl,
+  successHandler,
+  failureHandler,
+  setDefaultHeaders,
+  setFixedHeaders,
+} = {}) => {
+  const buildUrl = urlBuilder(baseUrl);
+  const buildHeaders = headersBuilder(setDefaultHeaders, setFixedHeaders);
+  const buildReq = reqBuilder(buildUrl, buildHeaders);
+  const send = (reqElements) => {
+    const req = buildReq(reqElements);
+    return requestAdapter(req)
+      .then(responseAdapter)
+      .catch(errorAdapter)
+      .then((res) => successHandler ? successHandler(res, req) : res)
+      .catch((err) => {
+        if (failureHandler) {
+          return failureHandler(err, req);
+        }
+        throw err;
+      });
+  };
+  return {
+    send,
+    get: (url, { queryParams, pathParams, headers } = {}) => send({ url, queryParams, pathParams, headers }),
+    post: (url, data, { pathParams, headers } = {}) => send({ method: 'post', url, pathParams, headers, data }),
+    put: (url, data, { pathParams, headers } = {}) => send({ method: 'put', url, pathParams, headers, data }),
+    patch: (url, data, { pathParams, headers } = {}) => send({ method: 'patch', url, pathParams, headers, data }),
+    delete: (url, { pathParams, headers } = {}) => send({ method: 'delete', url, pathParams, headers }),
+    options: (url, { pathParams, headers } = {}) => send({ method: 'options', url, pathParams, headers }),
+  };
+};
+
+module.exports = getBuilder;
