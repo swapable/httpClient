@@ -6,7 +6,8 @@
   "types": "index.d.ts",
   "files": [
     "src/**/*.js",
-    "!src/**/*.test.js"
+    "!src/**/*.test.js",
+    "src/index.d.ts"
   ],
   "scripts": {
     "test": "jest --coverage",
