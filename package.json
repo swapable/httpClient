@@ -1,6 +1,6 @@
 {
   "name": "@swappable/httpclient",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Facilitate the swappability of http client dependencies in a Node.js project.",
   "main": "src/index.js",
   "types": "src/index.d.ts",
