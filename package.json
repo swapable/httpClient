@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "description": "Facilitate the swappability of http client dependencies in a Node.js project.",
   "main": "src/index.js",
-  "types": "index.d.ts",
+  "types": "src/index.d.ts",
   "files": [
     "src/**/*.js",
     "!src/**/*.test.js",
@@ -20,7 +20,11 @@
   "keywords": [
     "http client",
     "request",
-    "swapable"
+    "swappable",
+    "replaceable",
+    "ajax",
+    "promise",
+    "node"
   ],
   "author": "johanFive",
   "license": "MIT",
