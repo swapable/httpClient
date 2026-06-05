@@ -1,6 +1,8 @@
 type Headers = Record<string, string>;
 type PathParams = (string | number)[];
 type QueryParams = Record<string, string>;
+type BaseUrlResolver = (req: RequestElements) => string;
+type BaseUrl = string | BaseUrlResolver;
 
 type RequestElements = {
   /**
@@ -10,6 +12,13 @@ type RequestElements = {
    * if and when implementing retry logic.
    */
   attemptNumber?: number,
+  /**
+   * Overrides the client-level baseUrl for this request.
+   * 
+   * Can be a static url or a function resolved with the request details.
+   * Only used when url is relative; full urls are sent as-is.
+   */
+  baseUrl?: BaseUrl,
   data?: any,
   headers?: Headers,
   method?: string,
@@ -56,8 +65,10 @@ type ClientConfig = {
    * 
    * Can be overridden on a per-request basis.
    * example: `apiClient.get('https://api.com');`
+   * 
+   * Only used when url is relative; full urls are sent as-is.
    */
-  baseUrl?: string,
+  baseUrl?: BaseUrl,
   /**
    * Called when a promise resolves.
    * 
