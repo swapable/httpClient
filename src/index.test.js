@@ -94,6 +94,70 @@ describe('getBuilder', () => {
           );
         });
       });
+      test('client baseUrl can be resolved dynamically for each request', () => {
+        const baseUrl = jest.fn(({ url }) => (
+          url === '/oauth/token'
+            ? 'https://login.salesforce.com'
+            : 'https://my-domain.my.salesforce.com'
+        ));
+        httpClient = httpClientBuilder({
+          baseUrl,
+          setDefaultHeaders,
+          setFixedHeaders,
+        });
+        return httpClient.get('/oauth/token').then(() => (
+          httpClient.get('/services/data/v59.0/sobjects/Account')
+        )).then(() => {
+          expect(baseUrl).toHaveBeenCalledTimes(2);
+          expect(baseUrl).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            url: '/oauth/token',
+          }));
+          expect(baseUrl).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            url: '/services/data/v59.0/sobjects/Account',
+          }));
+          expect(requestAdapter).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            url: 'https://login.salesforce.com/oauth/token',
+          }));
+          expect(requestAdapter).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            url: 'https://my-domain.my.salesforce.com/services/data/v59.0/sobjects/Account',
+          }));
+        });
+      });
+      test('request baseUrl overrides client baseUrl', () => {
+        return httpClient.get('/oauth/token', {
+          baseUrl: 'https://login.salesforce.com',
+        }).then(() => {
+          expect(requestAdapter).toHaveBeenCalledWith(
+            expect.objectContaining({
+              url: 'https://login.salesforce.com/oauth/token',
+            })
+          );
+        });
+      });
+      test('request baseUrl override can be resolved dynamically', () => {
+        const baseUrl = jest.fn(() => 'https://test.salesforce.com');
+        return httpClient.get('/oauth/token', { baseUrl }).then(() => {
+          expect(baseUrl).toHaveBeenCalledWith(expect.objectContaining({
+            url: '/oauth/token',
+          }));
+          expect(requestAdapter).toHaveBeenCalledWith(
+            expect.objectContaining({
+              url: 'https://test.salesforce.com/oauth/token',
+            })
+          );
+        });
+      });
+      test('full url still overrides client and request baseUrl', () => {
+        const baseUrl = jest.fn(() => 'https://login.salesforce.com');
+        return httpClient.get('https://lol.com/overridingBaseUrl', { baseUrl }).then(() => {
+          expect(baseUrl).not.toHaveBeenCalled();
+          expect(requestAdapter).toHaveBeenCalledWith(
+            expect.objectContaining({
+              url: 'https://lol.com/overridingBaseUrl',
+            })
+          );
+        });
+      });
       ['post', 'put', 'patch'].forEach((method) => {
         test(`${method} method sends data in body`, () => {
           const payload = { add: 'user' };

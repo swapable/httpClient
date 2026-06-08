@@ -149,6 +149,59 @@ MyCompanyApiClient.prototype.fetchUsers = function fetchUsers() {
 };
 ```
 
+`baseUrl` may also be a function if the right host is only known at request time:
+
+```js
+function SalesforceApiClient() {
+  this.token = null;
+  this.instanceUrl = null;
+  this.oauthBaseUrl = 'https://login.salesforce.com';
+  this.apiClient = buildHttpClient({
+    baseUrl: ({ url }) => (
+      url.startsWith('/services/oauth2/')
+        ? this.oauthBaseUrl
+        : this.instanceUrl
+    ),
+    setDefaultHeaders: () => this.token ? ({
+      'Authorization': `Bearer ${this.token}`,
+    }) : undefined,
+  });
+}
+
+SalesforceApiClient.prototype.refreshOAuthToken = function refreshOAuthToken(formEncodedData) {
+  return this.apiClient.post('/services/oauth2/token', formEncodedData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  }).then((res) => {
+    this.token = res.access_token;
+    this.instanceUrl = res.instance_url || this.instanceUrl;
+    return res;
+  });
+};
+
+SalesforceApiClient.prototype.fetchAccounts = function fetchAccounts() {
+  return this.apiClient.get('/services/data/v66.0/query', {
+    queryParams: {
+      q: 'SELECT Id, Name FROM Account LIMIT 10',
+    },
+  });
+};
+```
+
+You can also override `baseUrl` for one request:
+
+```js
+return this.apiClient.post('/services/oauth2/token', data, {
+  baseUrl: 'https://login.salesforce.com',
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  },
+});
+```
+
+`baseUrl` is only used when `url` is relative. If `url` is a full url, the request is sent to that url and no client-level or request-level `baseUrl` resolver is called.
+
 <details>
   <summary>requestAdapter</summary>
 
@@ -291,14 +344,15 @@ apiClient
   <summary>Methods of the produced clients</summary>
 
 #### Methods of the produced clients
-+ `get`: (url, { queryParams, pathParams, headers } = {}) => Promise
-+ `post`: (url, data, { pathParams, headers } = {}) => Promise
-+ `put`: (url, data, { pathParams, headers } = {}) => Promise
-+ `patch`: (url, data, { pathParams, headers } = {}) => Promise
-+ `delete`: (url, { pathParams, headers } = {}) => Promise
-+ `options`: (url, { pathParams, headers } = {}) => Promise
++ `get`: (url, { baseUrl, queryParams, pathParams, headers } = {}) => Promise
++ `post`: (url, data, { baseUrl, pathParams, headers } = {}) => Promise
++ `put`: (url, data, { baseUrl, pathParams, headers } = {}) => Promise
++ `patch`: (url, data, { baseUrl, pathParams, headers } = {}) => Promise
++ `delete`: (url, { baseUrl, pathParams, headers } = {}) => Promise
++ `options`: (url, { baseUrl, pathParams, headers } = {}) => Promise
 And for when you need full control over the request:
-+ `send`: ({ headers, method, url, data, queryParams, pathParams, attemptNumber }) => Promise
++ `send`: ({ baseUrl, headers, method, url, data, queryParams, pathParams, attemptNumber }) => Promise
+  + `baseUrl` is a string or function used to override the client-level `baseUrl` for this request when `url` is relative
   + `pathParams` is an `array` of strings used to build a `/path/appended/to/url`
   + `queryParams` is an `object` literal used to build a `?query=string&appendedto=url%26path`
   + `attemptNumber` is the `number` of time this request has been attempted. Defaults to `1`
